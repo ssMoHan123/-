@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}智能识别 - 甘蔗病虫害多模态识别系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4"><i class="bi bi-camera me-2"></i>甘蔗病虫害智能识别</h2>
+        </div>
+    </div>
+
+    {% if not model_loaded %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>模型未加载</strong> - 请先运行 <code>python train.py</code> 训练模型后重启系统。
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- 左侧：上传区域 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-upload me-2"></i>上传图像</h5>
+                </div>
+                <div class="card-body">
+                    <form id="recognizeForm" enctype="multipart/form-data">
+                        <!-- 图片上传区 -->
+                        <div class="upload-area mb-3" id="uploadArea">
+                            <input type="file" id="imageInput" name="image" accept="image/*" class="d-none">
+                            <div id="uploadPlaceholder" class="text-center p-5">
+                                <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: #198754;"></i>
+                                <p class="mt-2 mb-1">点击或拖拽上传甘蔗图片</p>
+                                <small class="text-muted">支持 JPG、PNG、BMP 等格式，最大16MB</small>
+                            </div>
+                            <div id="imagePreview" class="text-center d-none">
+                                <img id="previewImg" class="img-fluid rounded" style="max-height: 300px;" alt="预览">
+                                <p class="mt-2 mb-0"><small id="fileName" class="text-muted"></small></p>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="clearImageBtn">
+                                    <i class="bi bi-x-circle"></i> 重新选择
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 环境数据 -->
+                        <div class="mb-3">
+                            <h6 class="text-muted">
+                                <i class="bi bi-thermometer-half me-1"></i>环境数据（可选）
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2"
+                                        data-bs-toggle="collapse" data-bs-target="#envData">
+                                    展开/收起
+                                </button>
+                            </h6>
+                            <div class="collapse" id="envData">
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">温度 (°C)</label>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="temperature" step="0.1" placeholder="如: 28.5">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">湿度 (%)</label>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="humidity" step="0.1" placeholder="如: 75.0">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">降雨量 (mm)</label>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="rainfall" step="0.1" placeholder="如: 12.0">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">土壤湿度 (%)</label>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="soil_moisture" step="0.1" placeholder="如: 60.0">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small">备注</label>
+                                        <textarea class="form-control form-control-sm" name="notes"
+                                                  rows="2" placeholder="可选备注信息..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 btn-lg" id="submitBtn"
+                                {% if not model_loaded %}disabled{% endif %}>
+                            <i class="bi bi-lightning me-2"></i>开始识别
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：识别结果 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0" id="resultCard" style="display:none;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>识别结果</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 主要结果 -->
+                    <div class="text-center mb-4">
+                        <div id="resultBadge" class="d-inline-block px-4 py-3 rounded-3 mb-3">
+                            <h3 class="mb-1" id="resultClassName"></h3>
+                            <h5 class="mb-0" id="resultClassNameEn"></h5>
+                        </div>
+                        <div>
+                            <span class="fs-4 fw-bold" id="resultConfidence"></span>
+                            <p class="text-muted small">置信度</p>
+                        </div>
+                    </div>
+
+                    <!-- 置信度进度条 -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">各类别概率分布</h6>
+                        <div id="probabilityBars"></div>
+                    </div>
+
+                    <!-- 环境数据显示 -->
+                    <div id="envDisplay" class="d-none">
+                        <h6 class="text-muted"><i class="bi bi-cloud-sun me-1"></i>环境信息</h6>
+                        <div class="row g-2" id="envInfo"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 加载中 -->
+            <div class="card shadow-sm border-0" id="loadingCard" style="display:none;">
+                <div class="card-body text-center p-5">
+                    <div class="spinner-border text-success mb-3" style="width:3rem;height:3rem;" role="status">
+                        <span class="visually-hidden">识别中...</span>
+                    </div>
+                    <h5 class="text-muted">正在识别中...</h5>
+                    <p class="text-muted small">AI模型正在分析图片，请稍候</p>
+                </div>
+            </div>
+
+            <!-- 初始提示 -->
+            <div class="card shadow-sm border-0" id="hintCard">
+                <div class="card-body text-center p-5">
+                    <i class="bi bi-arrow-left" style="font-size:3rem;color:#198754;opacity:0.3;"></i>
+                    <h5 class="text-muted mt-3">请先上传甘蔗图片</h5>
+                    <p class="text-muted small">上传图片后，系统将自动进行病虫害识别分析</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI深度分析：全宽卡片 -->
+    <div class="row mt-4" id="aiCard">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-robot me-2"></i>AI 深度分析（DeepSeek）</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- 左侧：症状输入 -->
+                        <div class="col-md-6 d-flex flex-column">
+                            <h6 class="text-muted mb-2"><i class="bi bi-pencil-square me-1"></i>补充症状描述</h6>
+                            <textarea class="form-control flex-grow-1" id="symptomText" rows="6"
+                                      placeholder="描述观察到的症状特征，如：叶片边缘有黄色晕圈、茎秆出现红色条纹、叶片出现褐色斑点等..."></textarea>
+                            <button class="btn btn-outline-primary w-100 mt-3" id="aiAnalyzeBtn"
+                                    onclick="sendToDeepSeek()">
+                                <i class="bi bi-send me-2"></i>发送给 AI 分析
+                            </button>
+                        </div>
+                        <!-- 右侧：分析结果 -->
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2"><i class="bi bi-lightbulb me-1 text-warning"></i>AI 诊断建议</h6>
+                            <div id="aiLoading" class="text-center py-5" style="display:none;">
+                                <div class="spinner-border text-primary mb-2" role="status"></div>
+                                <p class="text-muted small">AI 正在分析中，请稍候...</p>
+                            </div>
+                            <div id="aiResult" style="display:none;">
+                                <div class="card bg-light border-0">
+                                    <div class="card-body">
+                                        <div id="aiAnalysisText" style="white-space: pre-wrap; font-size: 0.9rem;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="aiEmptyHint" class="text-center py-5 text-muted">
+                                <i class="bi bi-chat-dots" style="font-size:2rem;opacity:0.3;"></i>
+                                <p class="small mt-2">输入症状描述后发送，AI 将给出综合诊断建议</p>
+                            </div>
+                            <div id="aiError" class="alert alert-warning mt-3" style="display:none;"></div>
+                            <div id="exportBtnArea" class="mt-3 text-center" style="display:none;">
+                                <button class="btn btn-success btn-sm" id="exportReportBtn"
+                                        onclick="exportReport()">
+                                    <i class="bi bi-file-earmark-word me-1"></i>导出诊断报告
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lastRecognitionResult = null;
+
+const CLASS_NAMES_CN = {
+    'cercospora': '褐斑病', 'eyespot': '眼斑病', 'healthy': '健康',
+    'redrot': '赤腐病', 'wheat_rust': '锈病', 'yellow_leaf': '黄叶病'
+};
+const CLASS_COLORS = {
+    'cercospora': '#dc3545', 'eyespot': '#ffc107', 'healthy': '#198754',
+    'redrot': '#dc3545', 'wheat_rust': '#fd7e14', 'yellow_leaf': '#0dcaf0'
+};
+
+// 上传区域交互
+const uploadArea = document.getElementById('uploadArea');
+const imageInput = document.getElementById('imageInput');
+const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+const fileName = document.getElementById('fileName');
+
+uploadArea.addEventListener('click', () => imageInput.click());
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {
+        imageInput.files = e.dataTransfer.files;
+        showPreview(e.dataTransfer.files[0]);
+    }
+});
+imageInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) showPreview(e.target.files[0]);
+});
+
+function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        uploadPlaceholder.classList.add('d-none');
+        imagePreview.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+}
+
+document.getElementById('clearImageBtn')?.addEventListener('click', clearImageSelection);
+
+function clearImageSelection() {
+    imageInput.value = '';
+    previewImg.src = '';
+    uploadPlaceholder.classList.remove('d-none');
+    imagePreview.classList.add('d-none');
+}
+
+// 表单提交
+document.getElementById('recognizeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!imageInput.files.length) { alert('请先上传图片'); return; }
+
+    const formData = new FormData(e.target);
+    const submitBtn = document.getElementById('submitBtn');
+    const resultCard = document.getElementById('resultCard');
+    const loadingCard = document.getElementById('loadingCard');
+    const hintCard = document.getElementById('hintCard');
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>识别中...';
+    hintCard.style.display = 'none';
+    resultCard.style.display = 'none';
+    loadingCard.style.display = 'block';
+
+    try {
+        const response = await fetch('/recognize', { method: 'POST', body: formData });
+        const data = await response.json();
+
+        if (data.error) {
+            alert(data.error);
+            loadingCard.style.display = 'none';
+            hintCard.style.display = 'block';
+            return;
+        }
+
+        displayResult(data);
+    } catch (err) {
+        alert('识别请求失败: ' + err.message);
+        loadingCard.style.display = 'none';
+        hintCard.style.display = 'block';
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-lightning me-2"></i>开始识别';
+    }
+});
+
+function displayResult(data) {
+    lastRecognitionResult = data;
+    // 重置AI分析区域
+    document.getElementById('aiResult').style.display = 'none';
+    document.getElementById('aiError').style.display = 'none';
+    document.getElementById('aiLoading').style.display = 'none';
+    document.getElementById('aiEmptyHint').style.display = 'block';
+    document.getElementById('symptomText').value = '';
+
+    document.getElementById('loadingCard').style.display = 'none';
+    const resultCard = document.getElementById('resultCard');
+    resultCard.style.display = 'block';
+
+    const color = CLASS_COLORS[data.predicted_class] || '#6c757d';
+    const badge = document.getElementById('resultBadge');
+    badge.style.backgroundColor = color + '20';
+    badge.style.border = '2px solid ' + color;
+
+    document.getElementById('resultClassName').textContent = data.predicted_class_cn;
+    document.getElementById('resultClassName').style.color = color;
+    document.getElementById('resultClassNameEn').textContent = data.predicted_class;
+    document.getElementById('resultClassNameEn').style.color = color;
+    document.getElementById('resultConfidence').textContent = data.confidence.toFixed(2) + '%';
+    document.getElementById('resultConfidence').style.color = color;
+
+    // 导出按钮
+    document.getElementById('exportBtnArea').style.display = 'block';
+
+    // 概率条
+    const barsDiv = document.getElementById('probabilityBars');
+    barsDiv.innerHTML = '';
+    const probs = data.all_probabilities;
+    const sortedClasses = Object.keys(probs).sort((a, b) => probs[b] - probs[a]);
+    sortedClasses.forEach(cls => {
+        const pct = probs[cls];
+        const cn = CLASS_NAMES_CN[cls] || cls;
+        const c = CLASS_COLORS[cls] || '#6c757d';
+        barsDiv.innerHTML += `
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small">
+                    <span>${cn} (${cls})</span><span>${pct.toFixed(1)}%</span>
+                </div>
+                <div class="progress" style="height:8px;">
+                    <div class="progress-bar" style="width:${pct}%;background-color:${c};"></div>
+                </div>
+            </div>`;
+    });
+
+    // 环境信息
+    const env = data.environment;
+    const envDisplay = document.getElementById('envDisplay');
+    const envInfo = document.getElementById('envInfo');
+    if (env.temperature || env.humidity || env.rainfall || env.soil_moisture) {
+        envDisplay.classList.remove('d-none');
+        envInfo.innerHTML = '';
+        if (env.temperature != null) envInfo.innerHTML += `<div class="col-6"><small class="text-muted">温度:</small> ${env.temperature}°C</div>`;
+        if (env.humidity != null) envInfo.innerHTML += `<div class="col-6"><small class="text-muted">湿度:</small> ${env.humidity}%</div>`;
+        if (env.rainfall != null) envInfo.innerHTML += `<div class="col-6"><small class="text-muted">降雨量:</small> ${env.rainfall}mm</div>`;
+        if (env.soil_moisture != null) envInfo.innerHTML += `<div class="col-6"><small class="text-muted">土壤湿度:</small> ${env.soil_moisture}%</div>`;
+    } else {
+        envDisplay.classList.add('d-none');
+    }
+}
+
+async function sendToDeepSeek() {
+    if (!lastRecognitionResult) {
+        alert('请先完成图像识别');
+        return;
+    }
+    const symptomText = document.getElementById('symptomText').value.trim();
+    if (!symptomText) {
+        alert('请输入补充症状描述');
+        return;
+    }
+
+    const btn = document.getElementById('aiAnalyzeBtn');
+    const aiLoading = document.getElementById('aiLoading');
+    const aiResult = document.getElementById('aiResult');
+    const aiError = document.getElementById('aiError');
+
+    btn.disabled = true;
+    document.getElementById('aiEmptyHint').style.display = 'none';
+    aiLoading.style.display = 'block';
+    aiResult.style.display = 'none';
+    aiError.style.display = 'none';
+
+    try {
+        const formData = new FormData();
+        formData.append('predicted_class', lastRecognitionResult.predicted_class);
+        formData.append('predicted_class_cn', lastRecognitionResult.predicted_class_cn);
+        formData.append('confidence', lastRecognitionResult.confidence);
+        formData.append('all_probs', JSON.stringify(lastRecognitionResult.all_probabilities));
+        formData.append('symptom_text', symptomText);
+        const env = lastRecognitionResult.environment;
+        if (env) {
+            if (env.temperature != null) formData.append('temperature', env.temperature);
+            if (env.humidity != null) formData.append('humidity', env.humidity);
+            if (env.rainfall != null) formData.append('rainfall', env.rainfall);
+            if (env.soil_moisture != null) formData.append('soil_moisture', env.soil_moisture);
+        }
+
+        const resp = await fetch('/api/deepseek_analysis', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (data.error) {
+            document.getElementById('aiError').textContent = data.error;
+            aiError.style.display = 'block';
+        } else {
+            document.getElementById('aiAnalysisText').textContent = data.analysis;
+            aiResult.style.display = 'block';
+        }
+    } catch (err) {
+        document.getElementById('aiError').textContent = '请求失败: ' + err.message;
+        aiError.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        aiLoading.style.display = 'none';
+    }
+}
+
+async function exportReport() {
+    if (!lastRecognitionResult) {
+        alert('请先完成图像识别');
+        return;
+    }
+    const btn = document.getElementById('exportReportBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>生成中...';
+
+    try {
+        const formData = new FormData();
+        const aiText = document.getElementById('aiAnalysisText').textContent.trim();
+        if (aiText) {
+            formData.append('ai_analysis', aiText);
+        }
+        const resp = await fetch('/api/export_report/' + lastRecognitionResult.record_id, {
+            method: 'POST',
+            body: formData
+        });
+        if (!resp.ok) throw new Error('导出失败');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '甘蔗病虫害诊断报告.docx';
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('导出失败: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-file-earmark-word me-1"></i>导出诊断报告';
+    }
+}
+</script>
+{% endblock %}

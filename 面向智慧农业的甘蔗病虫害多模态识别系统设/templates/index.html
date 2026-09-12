@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}首页 - 甘蔗病虫害多模态识别系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero区域 -->
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-7">
+            <h1 class="display-5 fw-bold text-success mb-3">
+                <i class="bi bi-tree-fill"></i> 甘蔗病虫害智能识别
+            </h1>
+            <p class="lead text-muted mb-4">
+                基于深度学习的甘蔗病虫害多模态识别系统，采用轻量化深度学习模型，
+                使用多模态大模型根据识别检测结果和图片进一步分析，为智慧农业提供精准的病虫害诊断与防治建议。
+            </p>
+            <div class="d-flex gap-3">
+                <a href="{{ url_for('recognize') }}" class="btn btn-success btn-lg px-4">
+                    <i class="bi bi-camera me-2"></i>开始识别
+                </a>
+                <a href="{{ url_for('history') }}" class="btn btn-outline-success btn-lg px-4">
+                    <i class="bi bi-clock-history me-2"></i>查看历史
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-5 text-center mt-4 mt-lg-0">
+            <div class="feature-icon-large bg-success bg-gradient text-white rounded-4 p-5">
+                <i class="bi bi-cpu" style="font-size: 5rem;"></i>
+                <p class="mt-3 mb-0 fs-5">智能检测分析预警</p>
+                {% if model_loaded %}
+                <span class="badge bg-light text-success mt-2">模型已就绪</span>
+                {% else %}
+                <span class="badge bg-warning text-dark mt-2">模型未加载</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能卡片 -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 card-hover">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-success bg-gradient text-white rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                        <i class="bi bi-upload fs-4"></i>
+                    </div>
+                    <h5 class="card-title">图像上传</h5>
+                    <p class="card-text text-muted small">支持图片、视频两种检测模式，支持多种格式文件上传</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 card-hover">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                        <i class="bi bi-thermometer-half fs-4"></i>
+                    </div>
+                    <h5 class="card-title">环境数据</h5>
+                    <p class="card-text text-muted small">可记录温度、湿度、降雨量等多模态环境信息</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 card-hover">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-warning bg-gradient text-white rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                        <i class="bi bi-lightning fs-4"></i>
+                    </div>
+                    <h5 class="card-title">智能识别</h5>
+                    <p class="card-text text-muted small">基于深度学习模型，毫秒级精准识别6种病害</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 card-hover">
+                <div class="card-body text-center p-4">
+                    <div class="feature-icon bg-info bg-gradient text-white rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" style="width:64px;height:64px;">
+                        <i class="bi bi-shield-check fs-4"></i>
+                    </div>
+                    <h5 class="card-title">防治建议</h5>
+                    <p class="card-text text-muted small">自动生成针对性的病虫害防治建议，助力科学种植</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-graph-up me-2"></i>系统概览</h3>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-success border-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">总识别次数</p>
+                            <h3 class="mb-0 text-success">{{ stats.total_records }}</h3>
+                        </div>
+                        <i class="bi bi-camera text-success" style="font-size:2rem;opacity:0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-primary border-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">平均置信度</p>
+                            <h3 class="mb-0 text-primary">{{ stats.avg_confidence }}%</h3>
+                        </div>
+                        <i class="bi bi-bullseye text-primary" style="font-size:2rem;opacity:0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-danger border-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">病害检出率</p>
+                            <h3 class="mb-0 text-danger">{{ stats.disease_rate }}%</h3>
+                        </div>
+                        <i class="bi bi-bug text-danger" style="font-size:2rem;opacity:0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-warning border-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1 small">识别类别</p>
+                            <h3 class="mb-0 text-warning">6种</h3>
+                        </div>
+                        <i class="bi bi-tags text-warning" style="font-size:2rem;opacity:0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 支持识别的病害类型 -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-list-check me-2"></i>支持识别的病害类型</h3>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-danger me-2">褐斑病</span>Cercospora</h6>
+                    <small class="text-muted">由尾孢菌引起的真菌性病害，叶片出现褐色斑点</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-warning text-dark me-2">眼斑病</span>Eyespot</h6>
+                    <small class="text-muted">叶片出现椭圆形眼状斑点，中央灰白边缘褐色</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-success me-2">健康</span>Healthy</h6>
+                    <small class="text-muted">甘蔗植株生长健康，无明显病害症状</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-danger me-2">赤腐病</span>Red Rot</h6>
+                    <small class="text-muted">甘蔗茎部和叶片出现红色腐烂症状的严重病害</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-warning text-dark me-2">锈病</span>Wheat Rust</h6>
+                    <small class="text-muted">叶片表面出现铁锈色粉状孢子堆的真菌性病害</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h6><span class="badge bg-info me-2">黄叶病</span>Yellow Leaf</h6>
+                    <small class="text-muted">叶片从中脉开始逐渐变黄的病毒性病害</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

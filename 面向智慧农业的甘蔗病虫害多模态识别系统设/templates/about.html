@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}关于 - 甘蔗病虫害多模态识别系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="bi bi-info-circle me-2"></i>关于系统</h2>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h4 class="text-success">面向智慧农业的甘蔗病虫害多模态识别系统</h4>
+                    <p class="text-muted">
+                        本系统采用深度学习技术，基于轻量化神经网络模型，实现对甘蔗常见病虫害的自动识别与诊断。
+                        系统支持图像上传、文本症状输入与环境数据融合的多模态分析方式，为农业生产提供智能化的病虫害防治指导。
+                    </p>
+                    <h5 class="mt-4">系统功能</h5>
+                    <ul>
+                        <li><strong>图像识别</strong> - 上传甘蔗叶片图像，AI自动识别病虫害类型</li>
+                        <li><strong>多模态融合</strong> - 支持文本症状输入、温度、湿度等环境数据辅助诊断</li>
+                        <li><strong>防治建议</strong> - 根据识别结果自动生成防治建议</li>
+                        <li><strong>历史管理</strong> - 完整的识别记录查询与管理</li>
+                        <li><strong>统计分析</strong> - 可视化统计图表，掌握病害趋势</li>
+                    </ul>
+
+                    <h5 class="mt-4">支持识别的病害类型</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr><th>中文名称</th><th>英文名称</th><th>类型</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>褐斑病</td><td>Cercospora</td><td><span class="badge bg-danger">病害</span></td></tr>
+                                <tr><td>眼斑病</td><td>Eyespot</td><td><span class="badge bg-danger">病害</span></td></tr>
+                                <tr><td>健康</td><td>Healthy</td><td><span class="badge bg-success">健康</span></td></tr>
+                                <tr><td>赤腐病</td><td>Red Rot</td><td><span class="badge bg-danger">病害</span></td></tr>
+                                <tr><td>锈病</td><td>Wheat Rust</td><td><span class="badge bg-danger">病害</span></td></tr>
+                                <tr><td>黄叶病</td><td>Yellow Leaf</td><td><span class="badge bg-danger">病害</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- 模型信息 -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-cpu me-2"></i>模型信息</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted">模型架构</td>
+                            <td><strong>轻量化神经网络</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">输入尺寸</td>
+                            <td>224 x 224</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">分类数量</td>
+                            <td>6类</td>
+                        </tr>
+                        {% if model_info %}
+                        <tr>
+                            <td class="text-muted">测试准确率</td>
+                            <td><strong class="text-success">{{ (model_info.get('test_accuracy', 0) * 100)|round(1) }}%</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">训练轮次</td>
+                            <td>{{ model_info.get('total_epochs', '-') }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- 技术栈 -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-stack me-2"></i>技术栈</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Python 3.8+</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>PyTorch 2.1.0</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Flask 3.0.0</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>SQLite 数据库</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Bootstrap 5.3.2</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Chart.js 4.4.1</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>轻量化深度学习模型</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

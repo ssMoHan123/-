@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}统计分析 - 甘蔗病虫害多模态识别系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="bi bi-bar-chart me-2"></i>统计分析</h2>
+
+    <!-- 概览卡片 -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 text-center">
+                <div class="card-body p-4">
+                    <i class="bi bi-camera text-success" style="font-size:2.5rem;"></i>
+                    <h2 class="mt-2 mb-0 text-success">{{ stats.total_records }}</h2>
+                    <p class="text-muted mb-0">总识别次数</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 text-center">
+                <div class="card-body p-4">
+                    <i class="bi bi-bullseye text-primary" style="font-size:2.5rem;"></i>
+                    <h2 class="mt-2 mb-0 text-primary">{{ stats.avg_confidence }}%</h2>
+                    <p class="text-muted mb-0">平均置信度</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 text-center">
+                <div class="card-body p-4">
+                    <i class="bi bi-bug text-danger" style="font-size:2.5rem;"></i>
+                    <h2 class="mt-2 mb-0 text-danger">{{ stats.disease_rate }}%</h2>
+                    <p class="text-muted mb-0">病害检出率</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- 类别分布 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>病害类别分布</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.class_distribution %}
+                    <div style="position:relative; height:300px;">
+                        <canvas id="classChart"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size:3rem;"></i>
+                        <p class="mt-2">暂无数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 每日趋势 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>近7日识别趋势</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.daily_records %}
+                    <div style="position:relative; height:300px;">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size:3rem;"></i>
+                        <p class="mt-2">暂无数据</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细统计表格 -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>类别详细统计</h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.class_distribution %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>病害类型</th>
+                                    <th>英文名称</th>
+                                    <th>识别次数</th>
+                                    <th>占比</th>
+                                    <th>分布</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in stats.class_distribution %}
+                                <tr>
+                                    <td>
+                                        <span class="badge {% if item.predicted_class == 'healthy' %}bg-success{% else %}bg-danger{% endif %} me-2">
+                                            {{ item.predicted_class_cn }}
+                                        </span>
+                                    </td>
+                                    <td class="text-muted">{{ item.predicted_class }}</td>
+                                    <td><strong>{{ item.count }}</strong></td>
+                                    <td>{{ (item.count / stats.total_records * 100)|round(1) }}%</td>
+                                    <td style="width:40%;">
+                                        <div class="progress" style="height:20px;">
+                                            <div class="progress-bar {% if item.predicted_class == 'healthy' %}bg-success{% else %}bg-danger{% endif %}"
+                                                 style="width:{{ (item.count / stats.total_records * 100)|round(1) }}%;">
+                                                {{ item.count }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <p>暂无统计数据，请先进行病虫害识别</p>
+                        <a href="{{ url_for('recognize') }}" class="btn btn-success">
+                            <i class="bi bi-camera me-2"></i>开始识别
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- 本地优先：Chart.js -->
+<script src="{{ url_for('static', filename='vendor/js/chart.min.js') }}"></script>
+<script>
+    // 自动容错：检测Chart.js是否加载成功
+    if (typeof Chart === 'undefined') {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+        s.onload = function() { initCharts(); };
+        document.body.appendChild(s);
+        console.log('[资源回退] Chart.js 切换到CDN加载');
+    } else {
+        initCharts();
+    }
+
+    function initCharts() {
+        if (typeof Chart === 'undefined') return;
+
+        {% if stats.class_distribution %}
+        // 类别分布饼图
+        const classData = {{ stats.class_distribution | tojson }};
+        const classLabels = classData.map(d => d.predicted_class_cn);
+        const classCounts = classData.map(d => d.count);
+        const classColors = ['#dc3545', '#ffc107', '#198754', '#dc3545', '#fd7e14', '#0dcaf0'];
+
+        new Chart(document.getElementById('classChart'), {
+            type: 'doughnut',
+            data: {
+                labels: classLabels,
+                datasets: [{
+                    data: classCounts,
+                    backgroundColor: classData.map((d, i) =>
+                        d.predicted_class === 'healthy' ? '#198754' : classColors[i % classColors.length]
+                    ),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+        {% endif %}
+
+        {% if stats.daily_records %}
+        // 每日趋势折线图
+        const dailyData = {{ stats.daily_records | tojson }};
+        new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+                labels: dailyData.map(d => d.date),
+                datasets: [{
+                    label: '识别次数',
+                    data: dailyData.map(d => d.count),
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+        {% endif %}
+    }
+</script>
+{% endblock %}

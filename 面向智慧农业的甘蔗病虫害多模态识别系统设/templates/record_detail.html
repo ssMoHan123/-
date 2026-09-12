@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}记录详情 #{{ record.id }} - 甘蔗病虫害多模态识别系统{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('history') }}">历史记录</a></li>
+            <li class="breadcrumb-item active">记录 #{{ record.id }}</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- 图片 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <img src="{{ url_for('static', filename=record.image_path) }}"
+                     class="card-img-top" alt="识别图片"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/><text fill=%22%23999%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22>图片不可用</text></svg>';">
+                <div class="card-body">
+                    <small class="text-muted">
+                        <i class="bi bi-file-image me-1"></i>{{ record.image_filename }}
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细信息 -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>识别结果</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <span class="badge fs-5 px-4 py-2
+                            {% if record.predicted_class == 'healthy' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ record.predicted_class_cn }}
+                        </span>
+                        <p class="text-muted mt-2 mb-0">{{ record.predicted_class }}</p>
+                    </div>
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">置信度</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-fill me-2" style="height:10px;">
+                                        <div class="progress-bar bg-success" style="width:{{ (record.confidence * 100)|round(2) }}%;"></div>
+                                    </div>
+                                    <strong>{{ (record.confidence * 100)|round(2) }}%</strong>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">识别时间</td>
+                            <td>{{ record.created_at }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">记录ID</td>
+                            <td>#{{ record.id }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 环境数据 -->
+            {% if record.temperature or record.humidity or record.rainfall or record.soil_moisture %}
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-cloud-sun me-2"></i>环境数据</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if record.temperature is not none %}
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <i class="bi bi-thermometer text-danger"></i>
+                                <p class="mb-0 small text-muted">温度</p>
+                                <strong>{{ record.temperature }}°C</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if record.humidity is not none %}
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <i class="bi bi-droplet text-primary"></i>
+                                <p class="mb-0 small text-muted">湿度</p>
+                                <strong>{{ record.humidity }}%</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if record.rainfall is not none %}
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <i class="bi bi-cloud-rain text-info"></i>
+                                <p class="mb-0 small text-muted">降雨量</p>
+                                <strong>{{ record.rainfall }}mm</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if record.soil_moisture is not none %}
+                        <div class="col-6">
+                            <div class="text-center p-2 bg-light rounded">
+                                <i class="bi bi-moisture text-success"></i>
+                                <p class="mb-0 small text-muted">土壤湿度</p>
+                                <strong>{{ record.soil_moisture }}%</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 备注 -->
+            {% if record.notes %}
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body">
+                    <h6 class="text-muted"><i class="bi bi-pencil me-1"></i>备注</h6>
+                    <p class="mb-0">{{ record.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('history') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>返回列表
+                </a>
+                <a href="{{ url_for('export_report', record_id=record.id) }}" class="btn btn-success">
+                    <i class="bi bi-file-earmark-word me-1"></i>导出报告
+                </a>
+                <button class="btn btn-outline-danger" onclick="deleteAndGoBack({{ record.id }})">
+                    <i class="bi bi-trash me-1"></i>删除记录
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function deleteAndGoBack(recordId) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+    try {
+        const resp = await fetch(`/api/delete_record/${recordId}`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            window.location.href = '{{ url_for("history") }}';
+        } else {
+            alert(data.error || '删除失败');
+        }
+    } catch (err) {
+        alert('删除请求失败: ' + err.message);
+    }
+}
+</script>
+{% endblock %}
